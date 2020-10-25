@@ -132,3 +132,5 @@ dmypy.json
 #dump files
 /client/Varios.png
 /client/prueba.txt
+/client/.DS_Store
+/server/.DS_Store
