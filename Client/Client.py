@@ -22,11 +22,10 @@ class Client:
         connected = True
         while connected:
             userInput = input('> ').strip()
-            self.__action(userInput)
-            msg = self.clientSocket.recv(
-                self.__COMMAND_FRAME_SIZE).decode(self.__FORMAT)
-            if msg:
-                print(msg)
+            success = self.__action(userInput)
+            if (success):
+                res = self.__getHeader()
+                print(res)
 
     def __sendCommand(self, command, args = ''):
         header = {
@@ -41,6 +40,8 @@ class Client:
         fileName = file.name
         fileSize = os.path.getsize(filePath)
         frames = int(fileSize/self.__FILE_FRAME_SIZE) + 1
+
+        print(frames)
 
         header = {
             "name": fileName,
@@ -61,6 +62,7 @@ class Client:
         frames = header["frames"]
         file = open(fileName, "wb")
 
+        print(header)
         while frames > 0:
             frame = self.clientSocket.recv(self.__FILE_FRAME_SIZE)
             if frame:
@@ -71,7 +73,9 @@ class Client:
 
     def __getHeader(self):
         stream = self.clientSocket.recv(self.__HEADER_SIZE)
-        header = pickle.loads(stream)
+        header = False
+        if stream:
+            header = pickle.loads(stream)
         return header
 
     def __sendHeader(self, header):
@@ -83,6 +87,7 @@ class Client:
         self.clientSocket.send(frame)
 
     def __action(self, msg):
+        success = True
         com = msg.strip().split(" ")
         if com[0] in Commands.__members__:
             command = Commands[com[0]].value
@@ -90,24 +95,43 @@ class Client:
             if command == 1:
                 self.__sendCommand(com[0])
             elif command == 2:
-                self.__commandVerification(com, 'name')
+                goodCom = self.__commandVerification(com, 'name')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
             elif command == 3:
-                self.__commandVerification(com, 'bucket')
+                goodCom = self.__commandVerification(com, 'bucket')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
             elif command == 4:
-                self.__commandVerification(com, 'bucket')
+                goodCom = self.__commandVerification(com, 'bucket')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
             elif command == 5:
                 self.__sendCommand(com[0])
             elif command == 6:
-                self.__commandVerification(com, 'file')
+                goodCom = self.__commandVerification(com, 'file')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
+                    self.__sendFile(com[1])
             elif command == 7:
-                self.__commandVerification(com, 'file')
+                goodCom = self.__commandVerification(com, 'file')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
+                    self.__getFile()
             elif command == 8:
-                self.__commandVerification(com, 'file')
+                goodCom = self.__commandVerification(com, 'file')
+                if goodCom:
+                    self.__sendCommand(com[0], com[1])
             elif command == 9 or command == 10:
                 self.__sendCommand(com[0])
+        else:
+            print('not a command')
+            success = False
+        return success
     
     def __commandVerification(self, com, msg):
         if len(com) == 2:
-            self.__sendCommand(com[0], com[1])
+            return True
         else:
             print(f'Unspecified {msg}')
+            return False

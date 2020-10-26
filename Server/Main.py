@@ -1,7 +1,8 @@
 from Server import Server
 
 def main():
-    server = Server("localhost", 7070)
+    PATH = '/Users/mateosancheztoro/Desktop/sockets'
+    server = Server("localhost", 7070, PATH)
     server.start()
 
 main()
