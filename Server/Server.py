@@ -40,11 +40,11 @@ class Server:
 
     def __clientHandler(self, conn, address, bucket):
         print(f"[NEW CONNECTION] {address} connected.")
-        connected = True
-        while connected:
+        while not conn._closed:
             msg = self.__getHeader(conn)
             if msg:
                 self.__action(msg, conn, bucket)
+    
 
     def __sendResponse(self, message, conn):
         encodedMessage = message.encode(self.__FORMAT)

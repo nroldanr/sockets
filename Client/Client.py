@@ -19,8 +19,7 @@ class Client:
     def __connect(self):
         self.clientSocket.connect(self.serverAddress)
 
-        connected = True
-        while connected:
+        while not self.clientSocket._closed:
             userInput = input('> ').strip()
             success = self.__action(userInput)
             if (success):
@@ -124,6 +123,7 @@ class Client:
                     self.__sendCommand(com[0], com[1])
             elif command == 9 or command == 10:
                 self.__sendCommand(com[0])
+                self.clientSocket.close()
         else:
             print('not a command')
             success = False
