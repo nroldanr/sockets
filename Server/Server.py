@@ -3,6 +3,7 @@ import threading
 import os
 import json
 import pickle
+import sys
 from Commands import Commands
 from Bucket import Bucket
 
@@ -17,26 +18,48 @@ class Server:
     def __init__(self, host, port, bucketsPath):
         self.serverAddress = (host, port)
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.serverSocket.bind(self.serverAddress)
+        self.__bind()
         self.createBucketDir(bucketsPath)
         self.bucketsPath = os.path.join(bucketsPath, 'Buckets')
+        self.rootPath = bucketsPath
 
     def start(self):
-        self.serverSocket.listen()
-        while True:
-            print(
-                f"[CURRENT ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
-            print(f"[LISTENING]...")
-            conn, clientAddress = self.serverSocket.accept()
-            buckets = Bucket(self.bucketsPath)
-            thread = threading.Thread(
-                target=self.__clientHandler, args=(conn, clientAddress, buckets))
-            thread.start()
+        checks = self.__checks()
+        if checks:
+            self.serverSocket.listen()
+            while True:
+                print(f"[CURRENT ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
+                print(f"[LISTENING]...")
+                conn, clientAddress = self.serverSocket.accept()
+                buckets = Bucket(self.bucketsPath)
+                thread = threading.Thread(
+                    target=self.__clientHandler, args=(conn, clientAddress, buckets))
+                thread.start()
 
     def createBucketDir(self, path):
         path = os.path.join(path, 'Buckets')
+        self.bucketsCreated = True
         if not os.path.exists(path):
-            os.mkdir(path)
+            try:
+                os.mkdir(path)
+            except:
+                self.bucketsCreated = False
+
+    def __checks(self):
+        if not self.bucketsCreated:
+            print(f'Path not found {self.rootPath}')
+            print('Please verify your path before trying to start the server')
+        if not self.connected:
+            print(f'Address {self.serverAddress} already in use')
+
+        return self.bucketsCreated & self.connected
+
+    def __bind(self):
+        try:
+            self.serverSocket.bind(self.serverAddress)
+            self.connected = True
+        except:
+            self.connected = False
 
     def __clientHandler(self, conn, address, bucket):
         print(f"[NEW CONNECTION] {address} connected.")
@@ -44,11 +67,14 @@ class Server:
             msg = self.__getHeader(conn)
             if msg:
                 self.__action(msg, conn, bucket)
-    
+        print(f'Client {address} disconnected')
+        print(f"[CURRENT ACTIVE CONNECTIONS] {threading.activeCount() - 2}")
+        sys.exit()
 
     def __sendResponse(self, message, conn):
         encodedMessage = message.encode(self.__FORMAT)
-        encodedMessage += b' ' * (self.__COMMAND_FRAME_SIZE - len(encodedMessage))
+        encodedMessage += b' ' * \
+            (self.__COMMAND_FRAME_SIZE - len(encodedMessage))
         conn.send(encodedMessage)
 
     def __getFile(self, conn, file):
@@ -65,15 +91,12 @@ class Server:
 
         file.close()
 
-    #sv
     def __sendFile(self, file, conn):
 
         fileName = os.path.basename(file.name)
         print(fileName)
         fileSize = os.path.getsize(os.path.realpath(file.name))
         frames = int(fileSize/self.__FILE_FRAME_SIZE) + 1
-
-
 
         header = {
             "name": fileName,
@@ -88,16 +111,13 @@ class Server:
 
         file.close()
 
-
     def __sendHeader(self, header, conn):
         header += b' ' * (self.__HEADER - len(header))
         conn.send(header)
-    
+
     def __sendFrame(self, frame, conn):
         frame += b' ' * (self.__FILE_FRAME_SIZE - len(frame))
         conn.send(frame)
-
-    #gdg
 
     def __getHeader(self, conn):
         stream = conn.recv(self.__HEADER)
@@ -140,10 +160,16 @@ class Server:
 
             elif command == 7:
                 args = msg['args']
-                file = bucket.fDownload(args)
-                self.__sendFile(file, conn)
-                message = pickle.dumps(f'file downloaded')
-                self.__sendHeader(message, conn)
+                if bucket.checkFile(msg['args']):   
+                    message = pickle.dumps(f'file exist')
+                    self.__sendHeader(message, conn)
+                    file = bucket.fDownload(args)
+                    self.__sendFile(file, conn)
+                    message = pickle.dumps(f'file downloaded')
+                    self.__sendHeader(message, conn)
+                else:
+                    message = pickle.dumps(f'file does not exist')
+                    self.__sendHeader(message, conn)
 
             elif command == 8:
                 args = msg['args']
@@ -156,4 +182,3 @@ class Server:
             else:
                 message = pickle.dumps(f'Bad command')
                 self.__sendHeader(message, conn)
-

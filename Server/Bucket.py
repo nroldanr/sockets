@@ -35,6 +35,10 @@ class Bucket:
     def fDelete(self, fileName):
         path = path = os.path.join(self.root, self.idBucket, fileName)
         os.remove(path)
+    
+    def checkFile(self, fileName):
+        path = os.path.join(self.root, self.idBucket, fileName)
+        return os.path.exists(path)
 
     
     

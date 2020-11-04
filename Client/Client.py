@@ -1,6 +1,7 @@
 import socket
 import pickle
 import os
+import sys
 from Commands import Commands
 
 
@@ -34,7 +35,6 @@ class Client:
         self.__sendHeader(pickle.dumps(header))
 
     def __sendFile(self, filePath):
-
         file = open(filePath, "rb")
         fileName = file.name
         fileSize = os.path.getsize(filePath)
@@ -54,6 +54,15 @@ class Client:
             self.__sendFrame(frame)
 
         file.close()
+
+
+    
+    def __checkFile(self, filePath):
+        if not os.path.exists(filePath):
+            print(f'File {filePath} not found')
+            return False
+        return True
+
 
     def __getFile(self):
         header = self.__getHeader()
@@ -97,33 +106,56 @@ class Client:
                 goodCom = self.__commandVerification(com, 'name')
                 if goodCom:
                     self.__sendCommand(com[0], com[1])
+                else:
+                    success = False
             elif command == 3:
                 goodCom = self.__commandVerification(com, 'bucket')
                 if goodCom:
                     self.__sendCommand(com[0], com[1])
+                else:
+                    success = False
             elif command == 4:
                 goodCom = self.__commandVerification(com, 'bucket')
                 if goodCom:
                     self.__sendCommand(com[0], com[1])
+                else:
+                    success = False
             elif command == 5:
                 self.__sendCommand(com[0])
             elif command == 6:
                 goodCom = self.__commandVerification(com, 'file')
                 if goodCom:
-                    self.__sendCommand(com[0], com[1])
-                    self.__sendFile(com[1])
+                    if self.__checkFile(com[1]):
+                        self.__sendCommand(com[0], com[1])
+                        self.__sendFile(com[1])
+                else:
+                    success = False
             elif command == 7:
                 goodCom = self.__commandVerification(com, 'file')
                 if goodCom:
                     self.__sendCommand(com[0], com[1])
-                    self.__getFile()
+
+                    confirmation = self.__getHeader()
+                    if confirmation == 'file exist':
+                        self.__getFile()
+                    else:
+                        print(confirmation)
+                        success = False
+                else:
+                    success = False
+
             elif command == 8:
                 goodCom = self.__commandVerification(com, 'file')
                 if goodCom:
                     self.__sendCommand(com[0], com[1])
+                else:
+                    success = False
             elif command == 9 or command == 10:
                 self.__sendCommand(com[0])
                 self.clientSocket.close()
+                print('Connection closed')
+                sys.exit()
+
         else:
             print('not a command')
             success = False
